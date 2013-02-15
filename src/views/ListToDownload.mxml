@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		title="Available Downloads"  
+		actionBarVisible="true"
+		creationComplete="init();">
+	
+	<fx:Script>
+		<![CDATA[
+			import business.Download;
+			import business.DownloadVideo;
+			import business.database.SelectVideoSQL;
+			import business.datahandler.VideoHandler;
+			import business.renderer.VideosItemRenderer;
+			
+			import events.DownloadEvent;
+			import events.OnProgressEvent;
+			import events.SQLVideoInEvent;
+			import events.VideosLoadedEvent;
+			
+			import mx.collections.XMLListCollection;
+			import mx.events.ResizeEvent;
+			
+			private var videoHandler:VideoHandler;
+			private var videoInsideHandler:SelectVideoSQL;
+			
+			private var videoName:String = "";
+			private var videoURL:String = "";
+			private var videoThumbnail:String = "";
+			
+			public function init():void
+			{
+				videoHandler = VideoHandler.getInstance();
+				videoHandler.init();
+				videoHandler.addEventListener(VideosLoadedEvent.VIDEOSLOADED, getVideos);
+				
+				this.addEventListener(ResizeEvent.RESIZE, onResizeView);
+			}	
+			
+			public function getVideos(e:VideosLoadedEvent):void
+			{
+				background.visible = false;
+				list.dataProvider = videoHandler.getVideosListCollection();
+			}
+			
+			protected function checkOrientation():void
+			{
+				/*
+				if(false){
+					currentState = "landScapeView";
+				}else{
+					currentState = "portrait";
+				}
+				*/
+			}
+			
+			protected function onResizeView(event:ResizeEvent):void
+			{
+				checkOrientation();
+			}
+			
+			public function downloadVideo():void
+			{			    
+				videoName = list.selectedItem.name;
+				videoURL = list.selectedItem.url;
+				videoThumbnail = list.selectedItem.thumbnail;
+				
+				videoInsideHandler = SelectVideoSQL.getInstance();
+				videoInsideHandler.checkVideo("mh2go/"+videoName, false);
+				videoInsideHandler.addEventListener(SQLVideoInEvent.VIDEOIN, videoInsideChecked);
+			}
+			
+			public function videoInsideChecked(e:SQLVideoInEvent):void
+			{
+				videoInsideHandler.removeEventListener(SQLVideoInEvent.VIDEOIN, videoInsideChecked);
+
+				videoName = "mh2go/"+videoName;
+
+				if(!videoInsideHandler.getVideoInsideStatus())
+				{
+					background.visible = true;
+					NativeApplication.nativeApplication.systemIdleMode = SystemIdleMode.KEEP_AWAKE;	
+
+					var downLoader:DownloadVideo = new DownloadVideo();
+					
+					downLoader.addEventListener(DownloadEvent.DOWNLOAD_COMPLETE, downloadComplete);
+					downLoader.addEventListener(OnProgressEvent.PROGRESS, onProgressEvent); 
+										
+					// perhaps for iOS 
+					//var file:File = File.applicationStorageDirectory.resolvePath(videoName); 
+
+					// 
+					var file:File = File.userDirectory.resolvePath(videoName); 
+
+					downLoader.download(videoURL, file, videoName, videoThumbnail);
+				}
+				else
+				{
+					downloadComplete(null);
+				}
+			}
+			
+			public function onProgressEvent(e:OnProgressEvent):void
+			{
+				loader.text = "downloading... " + e.percent+ " %";
+			}
+			
+			public function downloadComplete(e:DownloadEvent):void
+			{
+				background.visible = false;
+				NativeApplication.nativeApplication.systemIdleMode = SystemIdleMode.NORMAL;	
+
+				playVideo();
+				//	trace("Download complete: ");
+				//	trace("\t"+e.url);
+				//	trace("->\t"+e.file.url);
+			}
+			
+			public function playVideo():void
+			{
+				if(this.navigator != null)
+				{
+					NativeApplication.nativeApplication.systemIdleMode = SystemIdleMode.KEEP_AWAKE;	
+					this.navigator.pushView(Player, videoName);
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<!--
+	<s:actionContent>
+		
+		<s:Button id="back_button" 
+				  height="53"
+				  width="60"
+				  click="{this.navigator.popView()}">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="assets/BackIcon40x40.png"
+										source240dpi="assets/BackIcon64x64.png"
+										source320dpi="assets/BackIcon88x88.png"/>
+			</s:icon>
+		</s:Button>
+		
+	</s:actionContent>
+	-->
+	
+	<s:View backgroundColor="#F2F2F2">
+
+		<s:List id="list" 
+				width="100%" 
+				height="{navigator.height - 50}"
+				itemRenderer="business.renderer.VideosItemRenderer" 
+				change="downloadVideo()">
+		</s:List>
+		
+		<s:View id="background" visible="true"
+				backgroundColor="black"
+				alpha="0.7"
+				width="{navigator.width}" 
+				height="{navigator.height}">
+			
+			<s:Group width="{navigator.width}" height="50">
+				
+				<s:BusyIndicator id="bi" width="70" height="70"
+								 x="{navigator.width / 2 - 32}" 
+								 y ="100"
+								 symbolColor="white"/>
+				
+				<s:Label id="loader" color="white" 
+						 x="{navigator.width / 2 - 70}" 
+						 y ="190"/>
+				
+			</s:Group>
+		</s:View>
+	</s:View>
+</s:View>

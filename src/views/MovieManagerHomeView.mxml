@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		title="Manage Videos">
+
+	<fx:Script>
+		<![CDATA[
+			
+			public function loadDownloadVideosView():void
+			{
+				this.navigator.pushView(ListToDownload);
+			}
+			
+			public function loadVideosView():void
+			{
+				this.navigator.pushView(DownloadedList);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:View backgroundColor="#F2F2F2">
+			<s:Group width="{navigator.width}" height="{navigator.height}">
+				<s:Button label="download Videos" 
+						  x="{navigator.width / 2 - 97}" y = "80" width="200" 
+						  click="loadDownloadVideosView()">
+					
+				</s:Button>
+				<s:Button label="watch Videos"  
+						  x="{navigator.width / 2 - 97}" y = "160" width="200" 
+						  click="loadVideosView()">
+					
+				</s:Button>
+			</s:Group>
+	</s:View>
+</s:View>

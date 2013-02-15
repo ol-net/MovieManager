@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		title="Your Videos"
+		creationComplete="init();">
+	
+	<fx:Script>
+		<![CDATA[
+			import business.Download;
+			import business.database.SelectVideoSQL;
+			import business.renderer.VideosItemRenderer;
+			
+			import events.DownloadEvent;
+			import events.SQLConnectionIsOpen;
+			
+			import mx.collections.XMLListCollection;
+			import mx.events.ResizeEvent;
+			
+			private var videoHandler:SelectVideoSQL;
+			
+			private var xmlListLocal:XMLListCollection;
+			private var xmlListGlobal:XMLListCollection;
+			
+			public function init():void
+			{
+				videoHandler = SelectVideoSQL.getInstance();
+				videoHandler.initSQLViewAdopters();
+				videoHandler.addEventListener(SQLConnectionIsOpen.READERCOMPLETE, getVideos);
+				
+				this.addEventListener(ResizeEvent.RESIZE, onResizeView);
+			}	
+			
+			public function getVideos(e:SQLConnectionIsOpen):void
+			{
+				list.dataProvider = videoHandler.getVideosXML();
+			}
+			
+			protected function onResizeView(event:ResizeEvent):void
+			{
+			}
+			
+			public function downloadVideo():void
+			{
+				NativeApplication.nativeApplication.systemIdleMode = SystemIdleMode.KEEP_AWAKE;
+
+				//trace(list.selectedItem.url)
+				
+				this.navigator.pushView(Player, list.selectedItem.url);
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:actionContent>
+		
+		<s:Button id="back_button" 
+				  height="53"
+				  width="60"
+				  click="{this.navigator.popView()}">
+			<s:icon>
+				<s:MultiDPIBitmapSource source160dpi="assets/BackIcon40x40.png"
+										source240dpi="assets/BackIcon64x64.png"
+										source320dpi="assets/BackIcon88x88.png"/>
+			</s:icon>
+		</s:Button>
+		
+	</s:actionContent>
+
+	<s:List id="list" 
+			width="100%" 
+			height="100%"
+			itemRenderer="business.renderer.VideosItemRenderer" 
+			change="downloadVideo()">
+	</s:List>
+</s:View>

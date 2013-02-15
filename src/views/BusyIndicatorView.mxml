@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		actionBarVisible="false" 
+		creationComplete="init()">
+
+	<fx:Script>
+		<![CDATA[
+			
+			import events.DownloadEvent;
+			
+			public function init():void
+			{
+				this.addEventListener(DownloadEvent.DOWNLOAD_COMPLETE, popThisView);
+			}
+			
+			public function popThisView(e:DownloadEvent):void
+			{
+				this.navigator.popView();
+			}
+		]]>
+	</fx:Script>
+	
+	<s:BusyIndicator>
+		
+	</s:BusyIndicator>
+	
+</s:View>

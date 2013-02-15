@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" 
+		xmlns:views="views.*"	
+		creationComplete="init()"
+		tabBarVisible="false"
+		backKeyPressed="popThisView()" 
+		backgroundColor="black" 
+		actionBarVisible="false">
+	
+	<fx:Script>
+		<![CDATA[
+			
+			import flash.events.TimerEvent;
+			import flash.utils.Timer;
+			
+			import mx.events.ResizeEvent;
+			
+			import org.osmf.events.TimeEvent;
+			
+			import business.OSMFPlayer;
+			
+			//private var uri:String = "rtmp://video2.virtuos.uni-osnabrueck.de/matterhorn-engage/2f00a6dc-27ad-4052-87b0-7fe231c7303d/c73be881-a6f8-4bcc-a639-c635c76c6901/mp4:vga.mp4";
+			
+			private var uri:String; // = "http://ol-web.de/TheLastStand-OfficialTrailer(2013)[HD].mp4";
+			
+			[Bindable]
+			private var osmfplayer:OSMFPlayer;
+			
+			[Bindable]
+			protected var height_num:Number = 0;
+			
+			[Bindable]
+			protected var width_num:Number = 0;
+			
+			[Bindable]
+			private var video_duration:Number;
+			
+			protected var myTimer:Timer;
+			
+			protected var updateTimer:Timer;
+			
+			private var presenterViewState:Boolean = false;
+			private var presentationViewState:Boolean = false;
+			private var parallelViewState:Boolean = true;
+			
+			[Bindable]
+			private var maxsize:Number;
+			
+			private var time:Number = 0;
+			
+			private var updateSeekBar:Boolean = true;
+			
+			private var stopTimer:Boolean = true;
+			
+			private var seekPosition:Number = 0;
+			
+			private var showButtons:Boolean = true;
+			
+			[Bindable]
+			private var time_text:String = "00:00:00";
+			
+			[Bindable]
+			private var duration_text:String = "00:00:00";
+			
+			private var viewActive:Boolean = true;
+			
+			private var timerCounterForView:Timer;
+			
+			private var rightTimer:Boolean = false;  
+			
+			protected function init():void
+			{			
+				uri = String(data);
+				
+				seekBar.addEventListener(MouseEvent.MOUSE_DOWN, stopUpdate);
+				seekBar.addEventListener(MouseEvent.MOUSE_UP, startUpdate);
+				seekBar.addEventListener(MouseEvent.MOUSE_MOVE, updateTime);
+				
+				height_num = navigator.height - 120;
+				width_num = navigator.width - 80;
+				
+				seekBar.width = navigator.width - 50;
+				
+				videoSize();
+				
+				this.navigator.addEventListener(ResizeEvent.RESIZE, setSize);
+				this.navigator.addEventListener(MouseEvent.CLICK, getButtonPanel);
+				
+				this.addEventListener("keyDown", handleButtons, false, 1);
+				this.addEventListener("keyUp", handleButtons, false, 1);
+				
+				setTimer();			
+			}
+			
+			private function updateTime(e:MouseEvent):void
+			{
+				time_text = timerend(seekBar.value * 60000);
+			}
+			
+			private function onCurrentTimeChangeHandler(e:TimeEvent):void
+			{	
+				if(isNaN(osmfplayer.play.currentTime)) 
+				{
+					osmfplayer.play.stop();
+				}
+				
+				if(osmfplayer.play.currentTime == osmfplayer.play.duration) // || osmfplayer.player.currentTime == 0)
+				{						
+					osmfplayer.play.seek(0);
+					seekBar.value = 0;
+					
+					pause_button.visible = false;
+					play_button.visible = true;
+					
+					//osmfplayer.player.stop();
+					return;
+				}
+				
+				if(updateSeekBar && !isNaN(osmfplayer.play.currentTime))
+				{
+					if(seekPosition != 0)
+					{
+						if(osmfplayer.play.playing || osmfplayer.play.paused) {
+							osmfplayer.play.seek(seekPosition / 1000);
+						}
+					}
+					else
+					{
+						seekBar.value = e.time / 60;
+					}
+					
+					var tmp:Number = seekBar.value;
+					
+					time_text = timerend(e.time * 1000);
+				}
+				
+				seekPosition = 0;
+				
+				if(duration_text == "00:00:00")
+				{
+					duration_text = timerend(osmfplayer.play.duration * 1000);
+					maxsize = osmfplayer.play.duration / 60;
+				}
+			}
+			
+			public function timerend(time:Number):String
+			{
+				var newtime:String = "";
+				var temp:Number;
+				var hour:Number = 0;
+				var tmp:int = int(time);
+				
+				if (time==0)
+				{
+					return ("00:00:00");
+				} 
+				else 
+				{
+					tmp = (tmp/1000);
+					temp = (tmp%60);
+					tmp = (tmp/60);
+					
+					while (tmp>=60) 
+					{
+						tmp-=60;
+						hour++;
+					}
+					if (hour<10)
+					{
+						newtime += "0";
+					}
+					newtime += String(hour);
+					newtime += ":";
+					
+					if (tmp<10) 
+					{
+						newtime += "0";
+					}
+					newtime += String(tmp);
+					newtime += ":";
+					
+					if (temp<10) 
+					{
+						newtime += "0";
+					}
+					newtime += String(temp);
+				}
+				return newtime;
+			}	
+			
+			private function onSeek(loc:Number):void 
+			{  	
+				if(osmfplayer != null)
+				{ 
+					if(osmfplayer.play.paused || osmfplayer.play.playing)
+					osmfplayer.play.seek(loc * 60);
+				}
+			}
+			
+			public function setSize(event:ResizeEvent):void
+			{			
+				height_num = navigator.height - 120;
+				width_num = navigator.width - 80;
+				
+				video_one.removeAllElements();
+				
+				videoSize();
+				seekBar.width = navigator.width - 50;
+			}
+			
+			public function videoSize():void
+			{			
+				if(true)
+				{
+					if(osmfplayer == null)
+					{
+						osmfplayer = new OSMFPlayer(uri);  
+						osmfplayer.setSize(navigator.height, navigator.width);
+					}
+					
+					if(osmfplayer.play != null)
+					{
+						osmfplayer.play.addEventListener(TimeEvent.CURRENT_TIME_CHANGE, onCurrentTimeChangeHandler);
+					}
+					
+					osmfplayer.setContainerOneSize(navigator.width, navigator.height);
+					
+					video_one.addElement(osmfplayer.getContainerOne());
+					
+					video_one.x = 0;
+					video_one.y = 0;
+				}
+			}	
+			
+			public function playFW():void
+			{		
+				if(osmfplayer != null)
+				{
+					if(osmfplayer.play != null)
+					{
+						if(osmfplayer.play.playing || osmfplayer.play.paused)
+							osmfplayer.play.seek(seekBar.value * 60 + 10);
+					}
+				}
+			}
+			
+			public function playBW():void
+			{
+				if(osmfplayer != null)
+				{
+					if(osmfplayer.play != null)
+					{
+						if(osmfplayer.play.playing || osmfplayer.play.paused)
+							osmfplayer.play.seek(seekBar.value * 60 - 10);
+					}
+				}
+			}
+			
+			public function loadParallelView():void
+			{
+				if(osmfplayer.play != null)
+					osmfplayer.play.addEventListener(TimeEvent.CURRENT_TIME_CHANGE, onCurrentTimeChangeHandler );
+				
+				var h:Number;
+				var w:Number;
+				
+				osmfplayer.setContainerOneSize(w, h);
+				video_one.addElement(osmfplayer.getContainerOne());
+			}
+			
+			private function stopUpdate(e:MouseEvent):void
+			{
+				updateSeekBar = false;
+				showButtons = false;
+				
+				this.addEventListener(MouseEvent.MOUSE_MOVE, updateTime);
+				this.addEventListener(MouseEvent.MOUSE_UP, startUpdate);
+			}
+			
+			private function startUpdate(e:MouseEvent):void
+			{
+				this.removeEventListener(MouseEvent.MOUSE_MOVE, updateTime);
+				this.removeEventListener(MouseEvent.MOUSE_UP, startUpdate);
+				
+				updateSeekBar = true;
+				showButtons = true;
+				
+				if(myTimer.running)
+					myTimer.reset();
+				
+				setTimer();
+				
+				if(osmfplayer != null)
+				{
+					if(osmfplayer.play != null)
+					{
+						if(osmfplayer.play.playing || osmfplayer.play.paused)
+							onSeek(seekBar.value);
+					}
+				}
+			}
+			
+			public function setTimer():void
+			{
+				myTimer = new Timer(6000, 1); 
+				myTimer.addEventListener(TimerEvent.TIMER_COMPLETE, timer);
+				myTimer.start();
+			}
+			
+			public function timer(event:TimerEvent):void
+			{
+				if(showButtons)
+				{
+					buttonPanel.visible = false;
+				}
+			}
+			
+			public function getButtonPanel(event:MouseEvent):void
+			{
+				if(myTimer.running)
+					myTimer.reset();
+				
+				myTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, timer);
+				
+				if(showButtons)
+				{
+					buttonPanel.visible = true;
+				}
+				setTimer();
+			}
+			
+			public function playVideo():void
+			{
+				if(osmfplayer != null)
+				{
+					if (osmfplayer.play != null) 
+					{
+						play_button.visible = false;
+						pause_button.visible = true;
+						
+						osmfplayer.play.play();
+					}
+				}
+			}
+			
+			public function stopVideo():void
+			{
+				if(osmfplayer != null)
+				{
+					pause_button.visible = false;
+					play_button.visible = true;
+					osmfplayer.play.stop();
+					timer_label.text = "00:00:00";
+				}
+			}
+			
+			public function pauseVideo():void
+			{
+				if(osmfplayer != null)
+				{
+					if(osmfplayer.play != null)
+					{
+						pause_button.visible = false;
+						play_button.visible = true;
+						osmfplayer.play.pause();
+					}
+				}
+			}
+			
+			protected function popThisView():void
+			{
+				if(osmfplayer != null)
+				{
+					if(osmfplayer.play != null)
+					{
+						if(osmfplayer.play.playing || osmfplayer.play.paused)
+						{
+							osmfplayer.play.stop();
+							//osmfplayer.play.removeEventListener(TimeEvent.CURRENT_TIME_CHANGE, onCurrentTimeChangeHandler );
+						}
+					}
+				}
+				
+				seekBar.removeEventListener(MouseEvent.MOUSE_DOWN, stopUpdate);
+				seekBar.removeEventListener(MouseEvent.MOUSE_UP, startUpdate);
+				seekBar.removeEventListener(MouseEvent.MOUSE_MOVE, updateTime);
+				
+				this.navigator.removeEventListener(ResizeEvent.RESIZE, setSize);
+				this.navigator.removeEventListener(MouseEvent.CLICK, getButtonPanel);
+								
+				//this.navigator.popView();
+				this.navigator.pushView(ListToDownload);
+
+				NativeApplication.nativeApplication.systemIdleMode = SystemIdleMode.NORMAL;
+
+			}
+			
+			// Event handler to handle hardware keyboard keys.
+			protected function handleButtons(event:KeyboardEvent):void
+			{
+				if (event.keyCode == Keyboard.HOME) {
+					popThisView();
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:View id="video_one" backgroundColor="black" alpha="1"/>
+	
+	<s:SpriteVisualElement id="progress_bar"/>
+	
+	<s:Group id="buttonPanel" visible="true">
+		
+		<s:HGroup paddingLeft="10" paddingTop="0"
+				  x="17.5" y="10" >
+			
+			<s:Group>
+				<s:View backgroundColor="black" 
+						fontFamily="_sans" 
+						alpha="0.5" x="0" y="0">
+					<s:Group width="150" height="19">
+						<s:Label id="timer_label"  
+								 text="{time_text + ' - ' + duration_text}"
+								 color="white" 
+								 fontFamily="_sans" 
+								 x="3" y="3"/>
+					</s:Group>
+				</s:View>
+				
+			</s:Group>
+		</s:HGroup>
+		
+		<s:VGroup paddingLeft="10" paddingTop="0"
+				  x="17.5" y="{height_num}" >
+			<s:Group>
+				<s:VGroup width="{navigator.width - 77.5}">
+					
+					<s:HSlider id="seekBar" width="100%" height="100%" alpha="0.7"
+							   liveDragging="true"
+							   minimum="0" maximum="{maxsize}" 
+							   showDataTip="false"
+							   stepSize="0.01" snapInterval="0.01"/>
+				</s:VGroup>
+			</s:Group>
+			
+			<s:HGroup>
+				<s:Group>
+					<s:Button id="play_button" label="play" width="70" height="30" 
+							  click="playVideo();"
+							  visible="false"
+							  x = "{navigator.width / 2 - 115}"
+							  y = "0" />
+					
+					<s:Button id="pause_button" label="pause" width="70" height="30" 
+							  click="pauseVideo();"
+							  x = "{navigator.width / 2 - 115}"
+							  y = "0" />
+					
+					<s:Button id="back_button" 
+							  label="back" 
+							  width="70" height="30" 
+							  click="popThisView()"
+							  x = "{navigator.width / 2 - 10}"
+							  y = "0" />
+				</s:Group>
+			</s:HGroup>
+			
+		</s:VGroup>
+	</s:Group>
+	
+</s:View>
